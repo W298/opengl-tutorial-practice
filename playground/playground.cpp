@@ -6,6 +6,8 @@
 
 #include <common/shader.hpp>
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
 #include <glm/glm.hpp>
 using namespace glm;
 
@@ -26,7 +28,9 @@ int main()
 
     // Open a window
     GLFWwindow* window;
-    window = glfwCreateWindow(1024, 768, "Tutorial 01", NULL, NULL);
+    float width = 1024.0f;
+    float height = 768.0f;
+    window = glfwCreateWindow(width, height, "Playground", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "Failed to open GLFW window");
         glfwTerminate();
@@ -37,7 +41,7 @@ int main()
     glfwMakeContextCurrent(window);
     glewExperimental = true;
     if (glewInit() != GLEW_OK) {
-        fprintf(stderr, "Failed to Init GLWE\n");
+        fprintf(stderr, "Failed to Init GLEW\n");
         return -1;
     }
 
@@ -51,6 +55,20 @@ int main()
 
     // Compile GLSL program from shaders
     GLuint programID = LoadShaders("shaders/SimpleVertexShader.vertexshader", "shaders/SimpleFragmentShader.fragmentshader");
+
+    // Create MVP Matrix
+    mat4 projectionMat = perspective(radians(45.0f), width / height, 0.1f, 100.0f);
+    mat4 viewMat = lookAt(vec3(4, 3, 3), vec3(0, 0, 0), vec3(0, 1, 0));
+    mat4 modelMat = mat4(1.0f);
+
+    mat4 translationMat = translate(mat4(), vec3(2, 1, 0));
+    mat4 scaleMat = scale(vec3(0.5f, 0.5f, 0.5f));
+    modelMat = translationMat * scaleMat * modelMat;
+
+    mat4 mvpMat = projectionMat * viewMat * modelMat;
+
+    // Get a handle for MVP uniform in shader
+    GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
     // Define Vertex Array
     static const GLfloat g_vertex_buffer_data[] = {
@@ -71,6 +89,8 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(programID); // Use GLSL program
+
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
