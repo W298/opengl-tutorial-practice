@@ -4,6 +4,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <common/shader.hpp>
+
 #include <glm/glm.hpp>
 using namespace glm;
 
@@ -39,10 +41,50 @@ int main()
         return -1;
     }
 
+    // Set Input
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+
+    // Create VAO
+    GLuint VertexArrayID;
+    glGenVertexArrays(1, &VertexArrayID);
+    glBindVertexArray(VertexArrayID);
+
+    // Compile GLSL program from shaders
+    GLuint programID = LoadShaders("shaders/SimpleVertexShader.vertexshader", "shaders/SimpleFragmentShader.fragmentshader");
+
+    // Define Vertex Array
+    static const GLfloat g_vertex_buffer_data[] = {
+        -1.0f, -1.0f, 0.0f,
+        1.0f, -1.0f, 0.0f,
+        0.0f, 1.0f, 0.0f
+    };
+
+    // Init Vertex Buffer for Triangle
+    GLuint vertexbuffer;
+    glGenBuffers(1, &vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+    glClearColor(0.0f, 0.0f, 0.4f, 0.0f); // Clear color to dark blue
 
     do {
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(programID); // Use GLSL program
+
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+        glVertexAttribPointer(
+            0,          // attr 0 (same with shader)
+            3,          // size
+            GL_FLOAT,   // type
+            GL_FALSE,   // normalized?
+            0,          // stride
+            (void*)0    // array buffer offset
+        );
+
+        glDrawArrays(GL_TRIANGLES, 0, 3); // Draw Triangle
+        glDisableVertexAttribArray(0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
