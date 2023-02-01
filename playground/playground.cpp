@@ -58,39 +58,89 @@ int main()
 
     // Create MVP Matrix
     mat4 projectionMat = perspective(radians(45.0f), width / height, 0.1f, 100.0f);
-    mat4 viewMat = lookAt(vec3(4, 3, 3), vec3(0, 0, 0), vec3(0, 1, 0));
+    mat4 viewMat = lookAt(vec3(4, 3, -3), vec3(0, 0, 0), vec3(0, 1, 0));
     mat4 modelMat = mat4(1.0f);
 
-    mat4 translationMat = translate(mat4(), vec3(2, 1, 0));
-    mat4 scaleMat = scale(vec3(0.5f, 0.5f, 0.5f));
-    modelMat = translationMat * scaleMat * modelMat;
+    mat4 translateMat = translate(mat4(), vec3(0, 0, -2));
 
     mat4 mvpMat = projectionMat * viewMat * modelMat;
+    mat4 translatedMVPMat = projectionMat * viewMat * translateMat * modelMat;
 
     // Get a handle for MVP uniform in shader
     GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
-    // Define Vertex Array
+    // Define Vertex Array (Cube)
     static const GLfloat g_vertex_buffer_data[] = {
-        -1.0f, -1.0f, 0.0f,
+        -1.0f,-1.0f,-1.0f, // cube triangle 1 : begin
+        -1.0f,-1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f, // cube triangle 1 : end
+        1.0f, 1.0f,-1.0f, // cube triangle 2 : begin
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f, // cube triangle 2 : end
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        -1.0f,-1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f,-1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f,-1.0f,
+        1.0f,-1.0f,-1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f,-1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f,-1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f,-1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, // triangle
         1.0f, -1.0f, 0.0f,
         0.0f, 1.0f, 0.0f
     };
 
-    // Init Vertex Buffer for Triangle
+    // Define Color for each vertex (Cube)
+    static GLfloat g_color_buffer_data[13*3*3];
+    for (int v = 0; v < 13*3; v++) {
+        g_color_buffer_data[3*v+0] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        g_color_buffer_data[3*v+1] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        g_color_buffer_data[3*v+2] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+    }
+
+    // Init Vertex Buffer
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
+    // Init Color buffer
+    GLuint colorbuffer;
+    glGenBuffers(1, &colorbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f); // Clear color to dark blue
 
     do {
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(programID); // Use GLSL program
-
-        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
 
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -103,8 +153,25 @@ int main()
             (void*)0    // array buffer offset
         );
 
-        glDrawArrays(GL_TRIANGLES, 0, 3); // Draw Triangle
+        glEnableVertexAttribArray(1);
+        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glVertexAttribPointer(
+            1,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            0,
+            (void*)0
+        );
+
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &translatedMVPMat[0][0]); // Send Translated MVP Matrix to shader
+        glDrawArrays(GL_TRIANGLES, 12*3, 3); // Draw Triangle
+
+        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
+        glDrawArrays(GL_TRIANGLES, 0, 12*3); // Draw Cube
+
         glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
