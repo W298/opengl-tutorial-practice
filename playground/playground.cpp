@@ -11,6 +11,55 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
+GLuint loadBMP_custom(const char* imgPath) {
+    unsigned char header[54];
+    unsigned int dataFirstPos;
+    unsigned int width, height;
+    unsigned int imageSize;
+    unsigned char* data;
+
+    FILE* file = fopen(imgPath, "rb");
+    if (!file) {
+        printf("Unable to open image\n");
+        return 0;
+    }
+
+    if (fread(header, 1, 54, file) != 54) {
+        printf("Not a correct BMP image\n");
+        return 0;
+    }
+
+    if (header[0] != 'B' || header[1] != 'M') {
+        printf("Not a correct BMP image\n");
+        return 0;
+    }
+
+    dataFirstPos = *(int*)&(header[0x0A]);
+    imageSize = *(int*)&(header[0x22]);
+    width = *(int*)&(header[0x12]);
+    height = *(int*)&(header[0x16]);
+
+    if (imageSize == 0) imageSize = width * height * 3;
+    if (dataFirstPos == 0) dataFirstPos = 54;
+
+    data = new unsigned char[imageSize];
+    fread(data, 1, imageSize, file);
+    fclose(file);
+
+    // Bind data to opengl
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    return textureID;
+}
+
 int main()
 {
     // Init GLFW
@@ -61,15 +110,16 @@ int main()
     mat4 viewMat = lookAt(vec3(4, 3, -3), vec3(0, 0, 0), vec3(0, 1, 0));
     mat4 modelMat = mat4(1.0f);
 
-    mat4 translateMat = translate(mat4(), vec3(0, 0, -2));
-
     mat4 mvpMat = projectionMat * viewMat * modelMat;
-    mat4 translatedMVPMat = projectionMat * viewMat * translateMat * modelMat;
 
     // Get a handle for MVP uniform in shader
     GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
-    // Define Vertex Array (Cube)
+    // Load texture
+    GLuint texture = loadBMP_custom("uvtemplate.bmp");
+    GLuint textureID = glGetUniformLocation(programID, "myTextureSampler");
+
+    // Define Vertex Array
     static const GLfloat g_vertex_buffer_data[] = {
         -1.0f,-1.0f,-1.0f, // cube triangle 1 : begin
         -1.0f,-1.0f, 1.0f,
@@ -106,19 +156,48 @@ int main()
         -1.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f,
         -1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, // triangle
-        1.0f, -1.0f, 0.0f,
-        0.0f, 1.0f, 0.0f
+        1.0f,-1.0f, 1.0f
     };
 
-    // Define Color for each vertex (Cube)
-    static GLfloat g_color_buffer_data[13*3*3];
-    for (int v = 0; v < 13*3; v++) {
-        g_color_buffer_data[3*v+0] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        g_color_buffer_data[3*v+1] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        g_color_buffer_data[3*v+2] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-    }
+    // Define UV data
+    static const GLfloat g_uv_buffer_data[] = {
+        0.000059f, 1.0f-0.000004f,
+        0.000103f, 1.0f-0.336048f,
+        0.335973f, 1.0f-0.335903f,
+        1.000023f, 1.0f-0.000013f,
+        0.667979f, 1.0f-0.335851f,
+        0.999958f, 1.0f-0.336064f,
+        0.667979f, 1.0f-0.335851f,
+        0.336024f, 1.0f-0.671877f,
+        0.667969f, 1.0f-0.671889f,
+        1.000023f, 1.0f-0.000013f,
+        0.668104f, 1.0f-0.000013f,
+        0.667979f, 1.0f-0.335851f,
+        0.000059f, 1.0f-0.000004f,
+        0.335973f, 1.0f-0.335903f,
+        0.336098f, 1.0f-0.000071f,
+        0.667979f, 1.0f-0.335851f,
+        0.335973f, 1.0f-0.335903f,
+        0.336024f, 1.0f-0.671877f,
+        1.000004f, 1.0f-0.671847f,
+        0.999958f, 1.0f-0.336064f,
+        0.667979f, 1.0f-0.335851f,
+        0.668104f, 1.0f-0.000013f,
+        0.335973f, 1.0f-0.335903f,
+        0.667979f, 1.0f-0.335851f,
+        0.335973f, 1.0f-0.335903f,
+        0.668104f, 1.0f-0.000013f,
+        0.336098f, 1.0f-0.000071f,
+        0.000103f, 1.0f-0.336048f,
+        0.000004f, 1.0f-0.671870f,
+        0.336024f, 1.0f-0.671877f,
+        0.000103f, 1.0f-0.336048f,
+        0.336024f, 1.0f-0.671877f,
+        0.335973f, 1.0f-0.335903f,
+        0.667969f, 1.0f-0.671889f,
+        1.000004f, 1.0f-0.671847f,
+        0.667979f, 1.0f-0.335851f
+    };
 
     // Init Vertex Buffer
     GLuint vertexbuffer;
@@ -126,11 +205,11 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-    // Init Color buffer
-    GLuint colorbuffer;
-    glGenBuffers(1, &colorbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+    // Init UV buffer
+    GLuint uvbuffer;
+    glGenBuffers(1, &uvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -142,6 +221,12 @@ int main()
 
         glUseProgram(programID); // Use GLSL program
 
+        // Bind texture
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(textureID, 0);
+
+        // Set vertex position data
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
         glVertexAttribPointer(
@@ -153,19 +238,17 @@ int main()
             (void*)0    // array buffer offset
         );
 
+        // Set UV data
         glEnableVertexAttribArray(1);
-        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
         glVertexAttribPointer(
             1,
-            3,
+            2,
             GL_FLOAT,
             GL_FALSE,
             0,
             (void*)0
         );
-
-        glUniformMatrix4fv(matrixID, 1, GL_FALSE, &translatedMVPMat[0][0]); // Send Translated MVP Matrix to shader
-        glDrawArrays(GL_TRIANGLES, 12*3, 3); // Draw Triangle
 
         glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
         glDrawArrays(GL_TRIANGLES, 0, 12*3); // Draw Cube
@@ -177,4 +260,15 @@ int main()
         glfwPollEvents();
     }
     while(glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0);
+
+    // Cleanup
+    glDeleteBuffers(1, &vertexbuffer);
+    glDeleteBuffers(1, &uvbuffer);
+    glDeleteProgram(programID);
+    glDeleteTextures(1, &texture);
+    glDeleteVertexArrays(1, &VertexArrayID);
+
+    glfwTerminate();
+
+    return 0;
 }

@@ -1,11 +1,13 @@
 #version 330 core
 
-// Input color data
-in vec3 fragmentColor;
+// Input UV data
+in vec2 UV;
 
-// Output data
+// Output color data
 out vec3 color;
 
+uniform sampler2D myTextureSampler;
+
 void main() {
-	color = fragmentColor;
+	color = texture(myTextureSampler, UV).rgb;
 }
