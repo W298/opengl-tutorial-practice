@@ -16,70 +16,29 @@ mat4 computeMatricesFromInputs(GLFWwindow* window) {
     static float initialFOV = 50.0f;
     static float FOV = initialFOV;
 
-    static vec3 position = vec3(2, 2, 5);
-    static float horizontalAngle = 3.14f;
-    static float verticalAngle = 0.0f;
+    static vec3 position = vec3(4, 4, 0);
+    static float angle = 0.0f;
 
-    float speed = 3.0f; // Move speed with keyboard
-    float mouseSpeed = 0.01f; // Move speed with mouse
-
-    double xpos, ypos; // mouse x, y pos
     int width, height;
-
     double currentTime = glfwGetTime();
-    float deltaTime = float(currentTime - lastTime);
 
     glfwGetWindowSize(window, &width, &height);
-    glfwGetCursorPos(window, &xpos, &ypos);
 
     // Return mouse cursor to center
     glfwSetCursorPos(window, width / 2, height / 2);
 
-    // Add delta angle
-    horizontalAngle += mouseSpeed * deltaTime * (width / 2 - xpos);
-    verticalAngle = std::min(3.14f / 4, std::max(-3.14f / 4, verticalAngle + mouseSpeed * deltaTime * float(height / 2 - ypos)));
-
-    // Forward vector (Spherical => Orthogonal)
-    vec3 direction(
-        cos(verticalAngle) * sin(horizontalAngle),
-        sin(verticalAngle),
-        cos(verticalAngle) * cos(horizontalAngle)
-    );
-
-    // Right vector
-    vec3 right(
-        sin(horizontalAngle - 3.14f / 2),
-        0,
-        cos(horizontalAngle - 3.14f / 2)
-    );
-
-    // Up vector
-    vec3 up = cross(right, direction);
-
-    // Keyboard input handle
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-        position += direction * deltaTime * speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-        position -= direction * deltaTime * speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-        position += right * deltaTime * speed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-        position -= right * deltaTime * speed;
-    }
-
     // Mouse wheel callback (FOV)
     glfwSetScrollCallback(window, [](GLFWwindow* window, double xOffset, double yOffset) {
-        FOV -= 5 * yOffset;
+        angle += yOffset * 5;
+        position.x = 4 * cos(radians(angle));
+        position.z = 4 * sin(radians(angle));
     });
 
     lastTime = currentTime;
 
     // Calculate matrix
     mat4 projectionMat = perspective(radians(FOV), (float)width / (float)height, 0.1f, 100.0f);
-    mat4 viewMat = lookAt(position, position + direction, up);
+    mat4 viewMat = lookAt(position, vec3(0, 0, 0), vec3(0, 1, 0));
 
     return projectionMat * viewMat;
 }
