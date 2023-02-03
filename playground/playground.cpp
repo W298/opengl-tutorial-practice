@@ -1,46 +1,77 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <vector>
+#include <string>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 #include <common/shader.hpp>
 #include <common/texture.hpp>
+#include <common/input.hpp>
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/glm.hpp>
 using namespace glm;
 
-mat4 computeMatricesFromInputs(GLFWwindow* window) {
-    static double lastTime = glfwGetTime();
-    static float initialFOV = 50.0f;
-    static float FOV = initialFOV;
+bool loadOBJ(const char* path, std::vector<vec3>& outVertices, std::vector<vec2>& outUVs, std::vector<vec3>& outNormals) {
+    std::vector<unsigned int> vertexIndices, uvIndices, normalIndices; // Index data of vertex, uv, normal
+    std::vector<vec3> vertices; // Vertex data
+    std::vector<vec2> uvs; // UV data
+    std::vector<vec3> normals; // Normal data
 
-    static vec3 position = vec3(4, 4, 0);
-    static float angle = 0.0f;
+    FILE* file = fopen(path, "r");
+    if (file == NULL) {
+        printf("Unable to open the file \n");
+        return false;
+    }
 
-    int width, height;
-    double currentTime = glfwGetTime();
+    while (true) {
+        char lineHeader[128];
+        int res = fscanf(file, "%s", lineHeader);
+        if (res == EOF) break;
 
-    glfwGetWindowSize(window, &width, &height);
+        if (strcmp(lineHeader, "v") == 0) { // Read vertex line
+            vec3 vertex;
+            fscanf(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
+            vertices.push_back(vertex);
+        } else if (strcmp(lineHeader, "vt") == 0) { // Read uv line
+            vec2 uv;
+            fscanf(file, "%f %f\n", &uv.x, &uv.y);
+            uv.y = -uv.y; // Invert V value because DDS format is inverted
+            uvs.push_back(uv);
+        } else if (strcmp(lineHeader, "vn") == 0) { // Read normal line
+            vec3 normal;
+            fscanf(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z);
+            normals.push_back(normal);
+        } else if (strcmp(lineHeader, "f") == 0) { // Read face line
+            unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
+            int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
+                                 &vertexIndex[0], &uvIndex[0], &normalIndex[0],
+                                 &vertexIndex[1], &uvIndex[1], &normalIndex[1],
+                                 &vertexIndex[2], &uvIndex[2], &normalIndex[2]);
+            if (matches != 9){
+                printf("File can't be read\n");
+                return false;
+            }
 
-    // Return mouse cursor to center
-    glfwSetCursorPos(window, width / 2, height / 2);
+            // Insert value to vector
+            vertexIndices.insert(vertexIndices.end(), vertexIndex, vertexIndex + 3);
+            uvIndices.insert(uvIndices.end(), uvIndex, uvIndex + 3);
+            normalIndices.insert(normalIndices.end(), normalIndex, normalIndex + 3);
+        }
+    }
 
-    // Mouse wheel callback (FOV)
-    glfwSetScrollCallback(window, [](GLFWwindow* window, double xOffset, double yOffset) {
-        angle += yOffset * 5;
-        position.x = 4 * cos(radians(angle));
-        position.z = 4 * sin(radians(angle));
-    });
+    // Convert index to data
+    for (unsigned int i = 0; i < vertexIndices.size(); i++) {
+        vec3 vertex = vertices[vertexIndices[i] - 1];
+        vec2 uv = uvs[uvIndices[i] - 1];
+        vec3 normal = normals[normalIndices[i] - 1];
 
-    lastTime = currentTime;
+        outVertices.push_back(vertex);
+        outUVs.push_back(uv);
+        outNormals.push_back(normal);
+    }
 
-    // Calculate matrix
-    mat4 projectionMat = perspective(radians(FOV), (float)width / (float)height, 0.1f, 100.0f);
-    mat4 viewMat = lookAt(position, vec3(0, 0, 0), vec3(0, 1, 0));
-
-    return projectionMat * viewMat;
+    fclose(file);
+    return true;
 }
 
 int main()
@@ -92,100 +123,29 @@ int main()
     GLuint matrixID = glGetUniformLocation(programID, "MVP");
 
     // Load texture
-    GLuint texture = loadBMP_custom("uvtemplate.bmp");
+    GLuint texture = loadDDS("uvmap.DDS");
     GLuint textureID = glGetUniformLocation(programID, "myTextureSampler");
 
-    // Define Vertex Array
-    static const GLfloat g_vertex_buffer_data[] = {
-        -1.0f,-1.0f,-1.0f, // cube triangle 1 : begin
-        -1.0f,-1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f, // cube triangle 1 : end
-        1.0f, 1.0f,-1.0f, // cube triangle 2 : begin
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f, // cube triangle 2 : end
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        -1.0f,-1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        -1.0f,-1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f,-1.0f,
-        1.0f,-1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f,-1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f,-1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 1.0f,
-        1.0f,-1.0f, 1.0f
-    };
-
-    // Define UV data
-    static const GLfloat g_uv_buffer_data[] = {
-        0.000059f, 1.0f-0.000004f,
-        0.000103f, 1.0f-0.336048f,
-        0.335973f, 1.0f-0.335903f,
-        1.000023f, 1.0f-0.000013f,
-        0.667979f, 1.0f-0.335851f,
-        0.999958f, 1.0f-0.336064f,
-        0.667979f, 1.0f-0.335851f,
-        0.336024f, 1.0f-0.671877f,
-        0.667969f, 1.0f-0.671889f,
-        1.000023f, 1.0f-0.000013f,
-        0.668104f, 1.0f-0.000013f,
-        0.667979f, 1.0f-0.335851f,
-        0.000059f, 1.0f-0.000004f,
-        0.335973f, 1.0f-0.335903f,
-        0.336098f, 1.0f-0.000071f,
-        0.667979f, 1.0f-0.335851f,
-        0.335973f, 1.0f-0.335903f,
-        0.336024f, 1.0f-0.671877f,
-        1.000004f, 1.0f-0.671847f,
-        0.999958f, 1.0f-0.336064f,
-        0.667979f, 1.0f-0.335851f,
-        0.668104f, 1.0f-0.000013f,
-        0.335973f, 1.0f-0.335903f,
-        0.667979f, 1.0f-0.335851f,
-        0.335973f, 1.0f-0.335903f,
-        0.668104f, 1.0f-0.000013f,
-        0.336098f, 1.0f-0.000071f,
-        0.000103f, 1.0f-0.336048f,
-        0.000004f, 1.0f-0.671870f,
-        0.336024f, 1.0f-0.671877f,
-        0.000103f, 1.0f-0.336048f,
-        0.336024f, 1.0f-0.671877f,
-        0.335973f, 1.0f-0.335903f,
-        0.667969f, 1.0f-0.671889f,
-        1.000004f, 1.0f-0.671847f,
-        0.667979f, 1.0f-0.335851f
-    };
+    // Load OBJ
+    std::vector<vec3> vertices;
+    std::vector<vec2> uvs;
+    std::vector<vec3> normals;
+    if (!loadOBJ("cube.obj", vertices, uvs, normals)) {
+        printf("Error occurred while loading obj file");
+        return -1;
+    }
 
     // Init Vertex Buffer
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vec3), &vertices[0], GL_STATIC_DRAW);
 
     // Init UV buffer
     GLuint uvbuffer;
     glGenBuffers(1, &uvbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(vec2), &uvs[0], GL_STATIC_DRAW);
 
     glEnable(GL_DEPTH_TEST); // Enable Depth test
     glDepthFunc(GL_LESS);

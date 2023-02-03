@@ -64,6 +64,8 @@ add_executable(playground
 	common/shader.hpp
 	common/texture.cpp
 	common/texture.hpp
+	common/input.cpp
+	common/input.hpp
 )
 target_link_libraries(playground
 	${ALL_LIBS}
