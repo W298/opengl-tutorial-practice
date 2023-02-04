@@ -6,6 +6,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 using namespace glm;
 
-mat4 computeMatricesFromInputs(GLFWwindow* window);
+void computeMatricesFromInputs(GLFWwindow* window, mat4& projMat, mat4& viewMat);
 
 #endif

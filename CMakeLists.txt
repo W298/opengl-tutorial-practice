@@ -66,6 +66,8 @@ add_executable(playground
 	common/texture.hpp
 	common/input.cpp
 	common/input.hpp
+	common/objloader.cpp
+	common/objloader.hpp
 )
 target_link_libraries(playground
 	${ALL_LIBS}

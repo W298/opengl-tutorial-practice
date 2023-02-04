@@ -1,11 +1,11 @@
 #include "input.hpp"
 
-mat4 computeMatricesFromInputs(GLFWwindow* window) {
+void computeMatricesFromInputs(GLFWwindow* window, mat4& projMat, mat4& viewMat) {
     static double lastTime = glfwGetTime();
     static float initialFOV = 50.0f;
     static float FOV = initialFOV;
 
-    static vec3 position = vec3(4, 4, 0);
+    static vec3 position = vec3(4, 2, 0);
     static float angle = 0.0f;
 
     int width, height;
@@ -26,8 +26,6 @@ mat4 computeMatricesFromInputs(GLFWwindow* window) {
     lastTime = currentTime;
 
     // Calculate matrix
-    mat4 projectionMat = perspective(radians(FOV), (float)width / (float)height, 0.1f, 100.0f);
-    mat4 viewMat = lookAt(position, vec3(0, 0, 0), vec3(0, 1, 0));
-
-    return projectionMat * viewMat;
+    projMat = perspective(radians(FOV), (float)width / (float)height, 0.1f, 100.0f);
+    viewMat = lookAt(position, vec3(0, 0, 0), vec3(0, 1, 0));
 }
