@@ -68,6 +68,8 @@ add_executable(playground
 	common/input.hpp
 	common/objloader.cpp
 	common/objloader.hpp
+	common/vboindexer.cpp
+	common/vboindexer.hpp
 )
 target_link_libraries(playground
 	${ALL_LIBS}

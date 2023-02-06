@@ -9,6 +9,7 @@
 #include <common/texture.hpp>
 #include <common/input.hpp>
 #include <common/objloader.hpp>
+#include <common/vboindexer.hpp>
 
 using namespace glm;
 
@@ -46,8 +47,8 @@ int main()
         return -1;
     }
 
-    // Set Input
-    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE); // Get keyboard event
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Disable cursor
 
     // Create VAO
     GLuint VertexArrayID;
@@ -78,23 +79,35 @@ int main()
         return -1;
     }
 
+    // Load Index
+    std::vector<unsigned short> indices;
+    std::vector<vec3> indexed_vertices;
+    std::vector<vec2> indexed_uvs;
+    std::vector<vec3> indexed_normals;
+    indexVBO(vertices, uvs, normals, indices, indexed_vertices, indexed_uvs, indexed_normals);
+
     // Init Vertex Buffer
     GLuint vertexbuffer;
     glGenBuffers(1, &vertexbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vec3), &vertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, indexed_vertices.size() * sizeof(vec3), &indexed_vertices[0], GL_STATIC_DRAW);
 
     // Init UV buffer
     GLuint uvbuffer;
     glGenBuffers(1, &uvbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(vec2), &uvs[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, indexed_uvs.size() * sizeof(vec2), &indexed_uvs[0], GL_STATIC_DRAW);
 
     // Init Normal buffer
     GLuint normalbuffer;
     glGenBuffers(1, &normalbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(vec3), &normals[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, indexed_normals.size() * sizeof(vec3), &indexed_normals[0], GL_STATIC_DRAW);
+
+    GLuint elementbuffer;
+    glGenBuffers(1, &elementbuffer);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned short), &indices[0], GL_STATIC_DRAW);
 
     glEnable(GL_DEPTH_TEST); // Enable Depth test
     glDepthFunc(GL_LESS);
@@ -102,7 +115,19 @@ int main()
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f); // Clear color to dark blue
 
+    double lastTime = glfwGetTime();
+    int nbFrames = 0;
+
     do {
+        // Print FPS
+        double currentTime = glfwGetTime();
+        nbFrames++;
+        if (currentTime - lastTime >= 1.0) {
+            printf("%f ms/frame\t(%d FPS)\n", 1000.0 / double(nbFrames), nbFrames);
+            nbFrames = 0;
+            lastTime += 1.0;
+        }
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(programID); // Use GLSL program
@@ -148,6 +173,9 @@ int main()
             (void*)0
         );
 
+        // Set index data
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
+
         // Calculate MVP Matrix each frame
         mat4 projMat, viewMat;
         computeMatricesFromInputs(window, projMat, viewMat);
@@ -155,13 +183,19 @@ int main()
         mat4 mvpMat = projMat * viewMat * modelMat;
 
         glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
-        glUniformMatrix4fv(modelMatrixID, 1, GL_FALSE, &modelMat[0][0]);
-        glUniformMatrix4fv(viewMatrixID, 1, GL_FALSE, &viewMat[0][0]);
+        glUniformMatrix4fv(modelMatrixID, 1, GL_FALSE, &modelMat[0][0]); // Send Model Matrix to shader
+        glUniformMatrix4fv(viewMatrixID, 1, GL_FALSE, &viewMat[0][0]); // Send View Matrix to shader
 
         vec3 lightPos = vec3(4, 4, 4);
-        glUniform3f(lightID, lightPos.x, lightPos.y, lightPos.z);
+        glUniform3f(lightID, lightPos.x, lightPos.y, lightPos.z); // Send Light position to shader
 
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size()); // Draw Obj
+        // Draw with VBO indexing
+        glDrawElements(
+            GL_TRIANGLES,
+            indices.size(),
+            GL_UNSIGNED_SHORT,
+            (void*)0
+        );
 
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
