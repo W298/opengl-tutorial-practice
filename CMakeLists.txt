@@ -70,6 +70,8 @@ add_executable(playground
 	common/objloader.hpp
 	common/vboindexer.cpp
 	common/vboindexer.hpp
+	common/text2D.cpp
+	common/text2D.hpp
 )
 target_link_libraries(playground
 	${ALL_LIBS}

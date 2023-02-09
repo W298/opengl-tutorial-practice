@@ -1,10 +1,7 @@
 #include <vector>
-#include <cstring>
 
 #include <GL/glew.h>
-
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 using namespace glm;
 
 #include "shader.hpp"
@@ -12,13 +9,20 @@ using namespace glm;
 
 #include "text2D.hpp"
 
+int width;
+int height;
+
 unsigned int Text2DTextureID;
 unsigned int Text2DVertexBufferID;
 unsigned int Text2DUVBufferID;
 unsigned int Text2DShaderID;
 unsigned int Text2DUniformID;
+unsigned int Text2DScaleID;
 
-void initText2D(const char * texturePath){
+void initText2D(const char * texturePath, int winWidth, int winHeight){
+
+    width = winWidth;
+    height = winHeight;
 
 	// Initialize texture
 	Text2DTextureID = loadDDS(texturePath);
@@ -28,11 +32,11 @@ void initText2D(const char * texturePath){
 	glGenBuffers(1, &Text2DUVBufferID);
 
 	// Initialize Shader
-	Text2DShaderID = LoadShaders( "TextVertexShader.vertexshader", "TextVertexShader.fragmentshader" );
+	Text2DShaderID = LoadShaders("shaders/TextVertexShader.vert", "shaders/TextVertexShader.frag");
 
 	// Initialize uniforms' IDs
 	Text2DUniformID = glGetUniformLocation( Text2DShaderID, "myTextureSampler" );
-
+    Text2DScaleID = glGetUniformLocation(Text2DShaderID, "text2D_size");
 }
 
 void printText2D(const char * text, int x, int y, int size){
@@ -86,6 +90,7 @@ void printText2D(const char * text, int x, int y, int size){
 	glBindTexture(GL_TEXTURE_2D, Text2DTextureID);
 	// Set our "myTextureSampler" sampler to use Texture Unit 0
 	glUniform1i(Text2DUniformID, 0);
+    glUniform2f(Text2DScaleID, width, height);
 
 	// 1rst attribute buffer : vertices
 	glEnableVertexAttribArray(0);

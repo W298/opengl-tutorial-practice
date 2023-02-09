@@ -10,6 +10,7 @@
 #include <common/input.hpp>
 #include <common/objloader.hpp>
 #include <common/vboindexer.hpp>
+#include <common/text2D.hpp>
 
 using namespace glm;
 
@@ -56,7 +57,7 @@ int main()
     glBindVertexArray(VertexArrayID);
 
     // Compile GLSL program from shaders
-    GLuint programID = LoadShaders("shaders/SimpleVertexShader.vertexshader", "shaders/SimpleFragmentShader.fragmentshader");
+    GLuint programID = LoadShaders("shaders/VertexShader.vert", "shaders/FragmentShader.frag");
 
     // Get a handle for MVP uniform in shader
     GLuint matrixID = glGetUniformLocation(programID, "MVP");
@@ -67,14 +68,14 @@ int main()
     GLuint lightID = glGetUniformLocation(programID, "LightPosition_worldspace");
 
     // Load texture
-    GLuint texture = loadDDS("uvmap.dds");
+    GLuint texture = loadDDS("Cube.dds");
     GLuint textureID = glGetUniformLocation(programID, "myTextureSampler");
 
     // Load OBJ
     std::vector<vec3> vertices;
     std::vector<vec2> uvs;
     std::vector<vec3> normals;
-    if (!loadOBJ("suzanne.obj", vertices, uvs, normals)) {
+    if (!loadOBJ("cube.obj", vertices, uvs, normals)) {
         printf("Error occurred while loading obj file");
         return -1;
     }
@@ -109,23 +110,26 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned short), &indices[0], GL_STATIC_DRAW);
 
+    initText2D("CascadiaMono.dds", width, height);
+
     glEnable(GL_DEPTH_TEST); // Enable Depth test
     glDepthFunc(GL_LESS);
-    // glEnable(GL_CULL_FACE); // Enable Culling
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE); // Enable Culling
 
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f); // Clear color to dark blue
 
     double lastTime = glfwGetTime();
     int nbFrames = 0;
+    std::string text;
 
     do {
         // Print FPS
         double currentTime = glfwGetTime();
         nbFrames++;
         if (currentTime - lastTime >= 1.0) {
-            printf("%f ms/frame\t(%d FPS)\n", 1000.0 / double(nbFrames), nbFrames);
+            text = std::to_string(nbFrames) + " FPS";
+            printf("%s\n", text.c_str());
+
             nbFrames = 0;
             lastTime += 1.0;
         }
@@ -181,7 +185,7 @@ int main()
         // Calculate MVP Matrix each frame
         mat4 projMat, viewMat;
         computeMatricesFromInputs(window, projMat, viewMat);
-        mat4 modelMat = mat4(1.0f);
+        mat4 modelMat = scale(mat4(1.0f), vec3(0.2f, 0.2f, 0.2f));
         mat4 mvpMat = projMat * viewMat * modelMat;
 
         glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvpMat[0][0]); // Send MVP Matrix to shader
@@ -199,6 +203,8 @@ int main()
             (void*)0
         );
 
+        printText2D(text.c_str(), 50, 50, 50);
+
         glDisableVertexAttribArray(0);
         glDisableVertexAttribArray(1);
         glDisableVertexAttribArray(2);
@@ -215,6 +221,7 @@ int main()
     glDeleteTextures(1, &texture);
     glDeleteVertexArrays(1, &VertexArrayID);
 
+    cleanupText2D();
     glfwTerminate();
 
     return 0;
